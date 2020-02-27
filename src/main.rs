@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use tracing::{info, Level};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
+
+use crate::models::{DocumentIntrareFurnizori, IntrareFurnizoriBuilder};
 
 pub mod tva {
     //! Particularitati TVA intrari si iesiri.
@@ -117,8 +117,8 @@ pub mod models {
     }
 
     #[derive(Debug, Clone, Builder, Serialize)]
+    #[serde(rename_all = "PascalCase")]
     pub struct Scadenta {
-        #[serde(rename = "Valoare")]
         pub valoare: Option<String>,
         pub termen: Option<String>,
         pub mod_plata: Option<String>,
@@ -126,58 +126,43 @@ pub mod models {
     }
 
     #[derive(Debug, Clone, Builder, Serialize)]
+    #[serde(rename_all = "PascalCase")]
     pub struct Serii {
-        #[serde(rename = "Serie")]
         pub serie: Option<String>,
-        #[serde(rename = "Cant")]
         pub cant: Option<String>,
-        #[serde(rename = "Observatii")]
         pub observatii: Option<String>,
-        #[serde(rename = "DataProd")]
         pub data_prod: Option<String>,
     }
 
     #[derive(Debug, Clone, Builder, Serialize)]
+    #[serde(rename_all = "PascalCase")]
     pub struct ItemDocumentIntrareFurnizori {
         #[serde(rename = "IDArticol")]
         pub id_articol: Option<String>,
         #[serde(rename = "UM")]
         pub um: Option<String>,
-        #[serde(rename = "Cant")]
         pub cant: Option<String>,
         #[serde(rename = "TVANeded")]
         pub tva_neded: Option<String>,
-        #[serde(rename = "SimbolCentruCost")]
         pub simbol_centru_cost: Option<String>,
-        #[serde(rename = "CodAnalizaNod")]
         pub cod_analiza_nod: Option<String>,
-        #[serde(rename = "Observatii")]
         pub observatii: Option<String>,
-        #[serde(rename = "NrAuto")]
         pub nr_auto: Option<String>,
-        #[serde(rename = "Serii")]
         pub serii: Option<Vec<Serii>>,
-        #[serde(rename = "Pret")]
         pub pret: Option<String>,
-        #[serde(rename = "PretIntreg")]
         pub pret_intreg: Option<String>,
-        #[serde(rename = "Gestiune")]
         pub gestiune: Option<String>,
-        #[serde(rename = "LocatieGest")]
         pub locatie_gest: Option<String>,
-        #[serde(rename = "Discount")]
         pub discount: Option<String>,
-        #[serde(rename = "D1")]
         pub d1: Option<String>,
-        #[serde(rename = "D2")]
         pub d2: Option<String>,
-        #[serde(rename = "D3")]
         pub d3: Option<String>,
         #[serde(rename = "EXTENSIELINIE")]
         pub extensie_linie: Option<String>,
     }
 
     #[derive(Debug, Clone, Builder, Serialize)]
+    #[serde(rename_all = "PascalCase")]
     #[builder(build_fn(validate = "Self::validate"))]
     pub struct DocumentIntrareFurnizori {
         pub serie_doc: Option<String>,
@@ -185,24 +170,32 @@ pub mod models {
         pub nr_intreg: Option<String>,
         pub operat: Option<DN>,
         pub data: Option<String>,
+        #[serde(rename = "DataDVI")]
         pub data_dvi: Option<String>,
+        #[serde(rename = "SimbolCarnetNIR")]
         pub simbol_carnet_nir: Option<String>,
+        #[serde(rename = "NrNIR")]
         pub nr_nir: Option<String>,
+        #[serde(rename = "DataNIR")]
         pub data_nir: Option<String>,
         pub cod_furnizori: Option<String>,
         pub locatie: Option<String>,
         pub observatii: Option<String>,
+        #[serde(rename = "ObservatiiNIR")]
         pub observatii_nir: Option<String>,
         pub autofacturare: Option<DN>,
         pub moneda: Option<String>,
         pub curs: Option<String>,
         pub tip_tranzactie: Option<String>,
+        #[serde(rename = "TVALaIncasare")]
         pub tva_la_incasare: Option<String>,
+        #[serde(rename = "TipTVA")]
         pub tip_tva: Option<String>,
         pub cod_subunitate: Option<String>,
         pub scadenta: Option<String>,
         pub mod_plata: Option<String>,
         pub scadente: Option<Vec<Scadenta>>,
+        #[serde(rename = "EXTENSIEDOCUMENT")]
         pub extensie_document: Option<String>,
         pub items: Vec<ItemDocumentIntrareFurnizori>,
     }
@@ -233,12 +226,16 @@ pub mod models {
         }
     }
 
-    #[derive(Builder, Serialize)]
+    #[derive(Debug, Builder, Serialize)]
     #[builder(build_fn(validate = "Self::validate"))]
     pub struct IntrareFurnizori {
+        #[serde(rename = "TipDocument")]
         pub tip_document: Option<String>,
+        #[serde(rename = "AnLucru")]
         pub an_lucru: Option<String>,
+        #[serde(rename = "LunaLucru")]
         pub luna_lucru: Option<String>,
+        #[serde(rename = "Documente")]
         pub documente: Vec<DocumentIntrareFurnizori>,
     }
 
@@ -270,7 +267,24 @@ pub mod models {
 }
 
 pub mod client {
-    pub async fn update_intrari_furnizori() -> Result<(), Box<dyn std::error::Error>> {
+    use tracing::info;
+
+    use crate::models::IntrareFurnizori;
+
+    pub async fn update_intrari_furnizori(
+        client: &reqwest::Client,
+        intrare: IntrareFurnizori,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        info!(
+            "Se trimite o cerere de update intrare de la furnizori: {:?}",
+            intrare
+        );
+        let response = client
+            .post("http://10.0.0.132:8080/datasnap/rest/TServerMethods/IntrariFurnizori")
+            .json(&intrare)
+            .send()
+            .await?;
+        info!("S-a trimis intrarea de la furnizori: {:?}", response);
         Ok(())
     }
 }
@@ -291,11 +305,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    info!("Starting up.");
-    let resp = reqwest::get("https://httpbin.org/ip")
-        .await?
-        .json::<HashMap<String, String>>()
-        .await?;
-    info!("Response: {:?}", resp);
+    info!("Incep testele.");
+    let connect_timeout = std::time::Duration::from_secs(5);
+    info!(
+        "Timeout de conectare general setat la {:?}.",
+        connect_timeout
+    );
+
+    let c = reqwest::ClientBuilder::new()
+        .connection_verbose(true)
+        .connect_timeout(connect_timeout)
+        .build()?;
+
+    let intrare = IntrareFurnizoriBuilder::default()
+        .tip_document(Some(tip_document::FACTURA_INTRARE.into()))
+        .an_lucru(Some("2020".to_string()))
+        .luna_lucru(Some("02".to_string()))
+        .documente(vec![DocumentIntrareFurnizori {
+            serie_doc: None,
+            nr_doc: None,
+            nr_intreg: None,
+            operat: None,
+            data: None,
+            data_dvi: None,
+            simbol_carnet_nir: None,
+            nr_nir: None,
+            data_nir: None,
+            cod_furnizori: None,
+            locatie: None,
+            observatii: None,
+            observatii_nir: None,
+            autofacturare: None,
+            moneda: None,
+            curs: None,
+            tip_tranzactie: None,
+            tva_la_incasare: None,
+            tip_tva: None,
+            cod_subunitate: None,
+            scadenta: None,
+            mod_plata: None,
+            scadente: None,
+            extensie_document: None,
+            items: vec![],
+        }])
+        .build()?;
+
+    client::update_intrari_furnizori(&c, intrare).await?;
+
+    info!("Terminat cu succes.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_intrare_furnizori_builder_fail_plain_build() {
+        let result: Result<_, _> = models::IntrareFurnizoriBuilder::default().build();
+        assert!(result.is_err());
+    }
 }
