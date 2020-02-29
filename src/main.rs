@@ -1,7 +1,7 @@
 use tracing::{info, Level};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-use crate::models::{DocumentIntrareFurnizori, IntrareFurnizoriBuilder};
+use crate::models::*;
 
 pub mod tva {
     //! Particularitati TVA intrari si iesiri.
@@ -317,37 +317,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect_timeout(connect_timeout)
         .build()?;
 
+    let doc_count = 60;
+    let mut documente: Vec<DocumentIntrareFurnizori> = Vec::with_capacity(doc_count);
+
+    for i in 0..doc_count {
+        info!("Creez aleatoriu documentul de intrare de la furnizori no. {}.", i);
+        let doc = DocumentIntrareFurnizoriBuilder::default()
+            .serie_doc(Some("TEST".to_string()))
+            .nr_doc(Some(format!("T{}", i)))
+            .nr_intreg(Some(format!("TEST T{}", i)))
+            .operat(Some(DN::Da))
+            .data(Some("28.02.2020".to_string()))
+            .build()?;
+        info!("Documentul de intrare de la furnizori no. {} = {:?}", i, doc);
+        documente.push(doc);
+    }
+
     let intrare = IntrareFurnizoriBuilder::default()
         .tip_document(Some(tip_document::FACTURA_INTRARE.into()))
         .an_lucru(Some("2020".to_string()))
         .luna_lucru(Some("02".to_string()))
-        .documente(vec![DocumentIntrareFurnizori {
-            serie_doc: None,
-            nr_doc: None,
-            nr_intreg: None,
-            operat: None,
-            data: None,
-            data_dvi: None,
-            simbol_carnet_nir: None,
-            nr_nir: None,
-            data_nir: None,
-            cod_furnizori: None,
-            locatie: None,
-            observatii: None,
-            observatii_nir: None,
-            autofacturare: None,
-            moneda: None,
-            curs: None,
-            tip_tranzactie: None,
-            tva_la_incasare: None,
-            tip_tva: None,
-            cod_subunitate: None,
-            scadenta: None,
-            mod_plata: None,
-            scadente: None,
-            extensie_document: None,
-            items: vec![],
-        }])
+        .documente(documente)
         .build()?;
 
     client::update_intrari_furnizori(&c, intrare).await?;
